@@ -80,11 +80,14 @@ class App extends Component {
         this.setState({ weatherData: data });
       });
     setTimeout(() => {
-      this.setState({ city: this.state.weatherData.name });
+      this.setState(currentState => ({
+        city: currentState.weatherData.name,
+      }));
     }, 200);
   };
 
   render() {
+    const { searchType, city } = this.state;
     const options = [
       { key: "a", text: "Current Location", value: "Current Location" },
       { key: "c", text: "City", value: "City" },
@@ -95,7 +98,6 @@ class App extends Component {
       },
     ];
 
-    const { searchType, city } = this.state;
     let formFields = null;
     if (searchType[1] === "i") {
       formFields = (
