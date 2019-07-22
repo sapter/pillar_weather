@@ -34,7 +34,12 @@ class App extends Component {
   }
 
   searchOptionChangeHandler = (e, { value }) => {
-    this.setState({ searchType: value });
+    this.setState({
+      searchType: value,
+      tempCity: "",
+      lat: "",
+      lon: "",
+    });
   };
 
   cityInputChangeHandler = e => {
@@ -83,7 +88,7 @@ class App extends Component {
   fetchWeather = (lat, lon) => {
     const { searchType, city } = this.state;
     let url = `http://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=imperial&APPID=7035ab5008fa909641b7b9e36f9c58de`;
-    if (searchType[1] === "i") {
+    if (searchType === "City") {
       url = `http://api.openweathermap.org/data/2.5/weather?q=${city},us&units=imperial&APPID=7035ab5008fa909641b7b9e36f9c58de`;
     }
     console.log(url);
@@ -132,16 +137,18 @@ class App extends Component {
       },
     ];
 
-    const { searchType, temp, validCity } = this.state;
+    const { searchType, temp, validCity, tempCity, lat, lon } = this.state;
     console.log("[App.js] render", validCity, searchType);
     let formFields = null;
-    if (searchType[1] === "i") {
+    if (searchType === "City") {
       formFields = (
         <div>
           <Form onSubmit={this.cityButtonClickHandler} error>
             <Form.Input
               fluid
               label="City name"
+              name="city"
+              value={tempCity}
               placeholder="Enter City name"
               onChange={this.cityInputChangeHandler}
             />
@@ -164,20 +171,24 @@ class App extends Component {
           </Form>
         </div>
       );
-    } else if (searchType[0] === "L") {
+    } else if (searchType === "Longitude and Latitude") {
       formFields = (
         <div>
           <Form>
             <Form.Input
               fluid
-              label="Lattitude"
+              name="latitude"
+              label="Latitude"
+              value={lat}
               placeholder="0 °"
+              defaultValue=""
               onChange={this.latInputChangeHandler}
             />
             <Form.Input
               fluid
               label="Longitude"
               placeholder="0 °"
+              value={lon}
               onChange={this.lonInputChangeHandler}
             />
             <Form.Button
