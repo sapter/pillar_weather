@@ -165,7 +165,6 @@ class App extends Component {
         </div>
       );
     } else if (searchType[0] === "L") {
-      formFields = null;
       formFields = (
         <div>
           <Form>
