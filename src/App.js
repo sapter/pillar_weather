@@ -2,15 +2,16 @@ import React, { Component } from "react";
 import {
   Header,
   Form,
-  Button,
   Divider,
   Card,
   Image,
   List,
   Icon,
+  Message,
 } from "semantic-ui-react";
 
 import "./App.css";
+import { async } from "q";
 
 class App extends Component {
   state = {
@@ -18,15 +19,18 @@ class App extends Component {
     lat: "",
     lon: "",
     city: "",
-    weatherData: {},
+    validCity: true,
+    condition: "",
+    temp: null,
+    pressure: null,
+    humidity: null,
+    icon: "",
     tempCity: "",
   };
 
-  componentDidMount() {
-    this.getPosition();
-    setTimeout(() => {
-      this.fetchWeather(this.state.lat, this.state.lon);
-    }, 200);
+  async componentDidMount() {
+    await this.setPosition();
+    await this.setWeather(this.state.lat, this.state.lon);
   }
 
   searchOptionChangeHandler = (e, { value }) => {
@@ -45,26 +49,34 @@ class App extends Component {
     this.setState({ lon: e.target.value });
   };
 
-  cityButtonClickHandler = () => {
-    setTimeout(() => {
-      this.setState({ city: this.state.tempCity });
-    }, 100);
-    setTimeout(() => {
-      this.fetchWeather();
-    }, 200);
+  cityButtonClickHandler = async () => {
+    this.setState({
+      city: this.state.tempCity,
+    });
+    await this.setWeather();
   };
 
-  coordinatesButtonClickHandler = () => {
+  coordinatesButtonClickHandler = async () => {
     const { lat, lon } = this.state;
-    setTimeout(() => {
-      this.fetchWeather(lat, lon);
-    }, 5000);
+    await this.setWeather(lat, lon);
   };
 
   getPosition = () => {
-    navigator.geolocation.getCurrentPosition(position => {
-      const { latitude, longitude } = position.coords;
-      this.setState({ lat: latitude, lon: longitude });
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        position => resolve(position),
+        err => reject(err),
+      );
+    });
+  };
+
+  setPosition = async () => {
+    const position = await this.getPosition();
+    console.log(position.coords);
+    const { longitude, latitude } = position.coords;
+    this.setState({
+      lon: longitude,
+      lat: latitude,
     });
   };
 
@@ -74,14 +86,39 @@ class App extends Component {
     if (searchType[1] === "i") {
       url = `http://api.openweathermap.org/data/2.5/weather?q=${city},us&units=imperial&APPID=7035ab5008fa909641b7b9e36f9c58de`;
     }
-    fetch(url)
-      .then(response => response.json())
-      .then(data => {
-        this.setState({ weatherData: data });
+    console.log(url);
+    return new Promise((resolve, reject) => {
+      const json = fetch(url)
+        .then(response => response.json())
+        .then(data => data);
+      if (json) {
+        resolve(json);
+      } else {
+        reject(Error("there was an error"));
+      }
+    });
+  };
+
+  setWeather = async (lat, lon) => {
+    const weather = await this.fetchWeather(lat, lon);
+    if (weather.cod === 200) {
+      const { name: city } = weather;
+      const { temp, pressure, humidity } = weather.main;
+      const { main: condition, icon } = weather.weather[0];
+      this.setState({
+        validCity: true,
+        city,
+        condition,
+        temp,
+        pressure,
+        humidity,
+        icon,
       });
-    setTimeout(() => {
-      this.setState({ city: this.state.weatherData.name });
-    }, 200);
+    } else if (weather.cod === "404") {
+      this.setState({
+        validCity: false,
+      });
+    }
   };
 
   render() {
@@ -95,31 +132,40 @@ class App extends Component {
       },
     ];
 
-    const { searchType, city } = this.state;
+    const { searchType, temp, validCity } = this.state;
+    console.log("[App.js] render", validCity, searchType);
     let formFields = null;
     if (searchType[1] === "i") {
       formFields = (
         <div>
-          <Form>
+          <Form onSubmit={this.cityButtonClickHandler} error>
             <Form.Input
               fluid
               label="City name"
               placeholder="Enter City name"
               onChange={this.cityInputChangeHandler}
             />
+            {validCity ? null : (
+              <Message
+                error
+                header="Invalid City"
+                content="Please enter a valid US city"
+              />
+            )}
+            <Divider />
+            <Form.Button
+              inverted
+              color="linkedin"
+              fluid
+              onClick={this.cityButtonClickHandler}
+            >
+              Let's Go
+            </Form.Button>
           </Form>
-          <Divider />
-          <Button
-            inverted
-            color="linkedin"
-            fluid
-            onClick={this.cityButtonClickHandler}
-          >
-            Let's Go
-          </Button>
         </div>
       );
     } else if (searchType[0] === "L") {
+      formFields = null;
       formFields = (
         <div>
           <Form>
@@ -135,51 +181,45 @@ class App extends Component {
               placeholder="0 °"
               onChange={this.lonInputChangeHandler}
             />
+            <Form.Button
+              inverted
+              color="linkedin"
+              fluid
+              onClick={this.coordinatesButtonClickHandler}
+            >
+              Let's Go
+            </Form.Button>
           </Form>
-          <Button
-            inverted
-            color="linkedin"
-            fluid
-            onClick={this.coordinatesButtonClickHandler}
-          >
-            Let's Go
-          </Button>
         </div>
       );
     }
-
     let weatherCard = null;
-    if (city.length) {
-      const { main: weatherStatus, icon } = this.state.weatherData.weather[0];
-      const { main } = this.state.weatherData;
+    if (temp && validCity) {
+      // const { main: weatherStatus, icon } = this.state.weatherData.weather[0];
+      // const { main } = this.state.weatherData;
+      const { city, condition, temp, pressure, humidity, icon } = this.state;
       const iconURL = `http://openweathermap.org/img/wn/${icon}@2x.png`;
       weatherCard = (
         <Card centered>
           <Card.Content>
             <Image floated="right" size="mini" src={iconURL} />
             <Card.Header>{city}</Card.Header>
-            <Card.Meta>{weatherStatus}</Card.Meta>
+            <Card.Meta>{condition}</Card.Meta>
             <Card.Description>
               <List divided verticalAlign="middle">
                 <List.Item>
                   <List.Content>
-                    <List.Header>{`Temperature:  ${
-                      main.temp
-                    } °F `}</List.Header>
+                    <List.Header>{`Temperature:  ${temp} °F `}</List.Header>
                   </List.Content>
                 </List.Item>
                 <List.Item>
                   <List.Content>
-                    <List.Header>{`Humidity:  ${
-                      main.humidity
-                    } g/M3 `}</List.Header>
+                    <List.Header>{`Humidity:  ${humidity} g/M3 `}</List.Header>
                   </List.Content>
                 </List.Item>
                 <List.Item>
                   <List.Content>
-                    <List.Header>{`Pressure:  ${
-                      main.pressure
-                    } psi `}</List.Header>
+                    <List.Header>{`Pressure:  ${pressure} psi `}</List.Header>
                   </List.Content>
                 </List.Item>
               </List>
