@@ -11,7 +11,6 @@ import {
 } from "semantic-ui-react";
 
 import "./App.css";
-import { async } from "q";
 
 class App extends Component {
   state = {
